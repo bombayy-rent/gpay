@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GPay</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Hide scrollbar but allow scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes bounce-once {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15%); }
+        }
+        .animate-bounce-once {
+            animation: bounce-once 0.8s ease-in-out 1;
+        }
+        @keyframes scan-line {
+            0% { top: 0; }
+            50% { top: 100%; }
+            100% { top: 0; }
+        }
+        .animate-scan {
+            animation: scan-line 2s infinite linear;
+        }
+    </style>
+</head>
+<body class="bg-gray-200 font-sans sm:py-6 flex justify-center items-center min-h-screen">
+
+    <!-- Mobile Device Frame -->
+    <div class="w-full h-[100dvh] max-w-[400px] bg-white flex flex-col relative overflow-hidden sm:h-[800px] sm:rounded-[2.5rem] sm:shadow-2xl sm:ring-8 sm:ring-gray-100 border border-gray-200">
+        
+        <!-- Status Bar Mock -->
+        <div class="h-7 w-full bg-transparent absolute top-0 z-50 flex justify-between items-center px-5 pointer-events-none">
+            <span class="text-[11px] font-medium text-gray-800">9:41</span>
+            <div class="flex items-center gap-1">
+                <div class="w-3 h-3 rounded-full border border-gray-800 relative"><div class="absolute inset-0.5 bg-gray-800 rounded-full"></div></div>
+            </div>
+        </div>
+
+        <!-- App Container -->
+        <div class="flex-1 pt-7 h-full relative" id="app-container">
+            
+            <!-- ================= HOME SCREEN ================= -->
+            <div id="screen-home" class="app-screen h-full flex flex-col bg-[#F8F9FA] overflow-y-auto pb-20 no-scrollbar">
+                <!-- Header -->
+                <div class="bg-white px-4 pt-6 pb-6 rounded-b-[2rem] shadow-sm relative z-10">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="flex-1 bg-[#F1F3F4] h-12 rounded-full flex items-center px-4 gap-3 shadow-inner">
+                            <i data-lucide="search" class="text-gray-500 w-5 h-5"></i>
+                            <input type="text" placeholder="Pay by name or phone number" class="bg-transparent border-none outline-none w-full text-base text-gray-700 placeholder-gray-500" readonly>
+                        </div>
+                        <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-medium text-sm shadow-sm shrink-0">JD</div>
+                    </div>
+                    <!-- Scan Header -->
+                    <div class="flex justify-between items-center mb-6 px-2 cursor-pointer active:scale-95 transition-transform" onclick="showScanner()">
+                        <div>
+                            <h1 class="text-2xl font-semibold text-gray-800">Scan any QR code</h1>
+                            <p class="text-sm text-gray-500">Pay anywhere, securely</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 text-[#1A73E8] rounded-2xl flex items-center justify-center shadow-sm">
+                            <i data-lucide="qr-code"></i>
+                        </div>
+                    </div>
+                    <!-- Action Grid -->
+                    <div class="grid grid-cols-4 gap-4 px-2">
+                        <div class="flex flex-col items-center gap-2 cursor-pointer">
+                            <div class="w-14 h-14 bg-blue-50 text-[#1A73E8] rounded-full flex items-center justify-center shadow-sm"><i data-lucide="users"></i></div>
+                            <span class="text-xs text-center text-gray-700 font-medium leading-tight">Pay contacts</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-2 cursor-pointer">
+                            <div class="w-14 h-14 bg-blue-50 text-[#1A73E8] rounded-full flex items-center justify-center shadow-sm"><i data-lucide="smartphone"></i></div>
+                            <span class="text-xs text-center text-gray-700 font-medium leading-tight">Pay phone</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-2 cursor-pointer">
+                            <div class="w-14 h-14 bg-blue-50 text-[#1A73E8] rounded-full flex items-center justify-center shadow-sm"><i data-lucide="landmark"></i></div>
+                            <span class="text-xs text-center text-gray-700 font-medium leading-tight">Bank transfer</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-2 cursor-pointer">
+                            <div class="w-14 h-14 bg-blue-50 text-[#1A73E8] rounded-full flex items-center justify-center shadow-sm"><i data-lucide="receipt"></i></div>
+                            <span class="text-xs text-center text-gray-700 font-medium leading-tight">Pay bills</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- People Section -->
+                <div class="mt-6 px-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">People</h2>
+                        <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
+                    </div>
+                    <div id="people-list" class="flex gap-5 overflow-x-auto no-scrollbar">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- Businesses Section -->
+                <div class="mt-8 px-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">Businesses & bills</h2>
+                        <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
+                    </div>
+                    <div id="businesses-list" class="flex gap-5 overflow-x-auto no-scrollbar">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- Recent History -->
+                <div class="mt-8 px-4 pb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">Recent transactions</h2>
+                        <i data-lucide="history" class="text-gray-400 w-5 h-5"></i>
+                    </div>
+                    <div id="history-list" class="bg-white rounded-3xl p-2 shadow-sm border border-gray-100">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= SCANNER SCREEN ================= -->
+            <div id="screen-scanner" class="app-screen hidden h-full flex flex-col bg-gray-900 relative">
+                <!-- Header -->
+                <div class="flex justify-between items-center p-4 relative z-10">
+                    <button onclick="goHome()" class="p-2 text-white bg-black/30 rounded-full backdrop-blur-sm active:bg-black/50 transition-colors">
+                        <i data-lucide="x"></i>
+                    </button>
+                    <div class="flex gap-4">
+                        <button class="p-2 text-white bg-black/30 rounded-full backdrop-blur-sm"><i data-lucide="zap"></i></button>
+                        <button class="p-2 text-white bg-black/30 rounded-full backdrop-blur-sm"><i data-lucide="more-vertical"></i></button>
+                    </div>
+                </div>
+
+                <!-- Viewfinder -->
+                <div class="flex-1 flex flex-col items-center justify-center relative z-10 pb-20">
+                    <p class="text-white text-sm mb-8 bg-black/50 px-5 py-2 rounded-full backdrop-blur-sm">Point at a QR code to scan</p>
+                    
+                    <div class="w-64 h-64 relative">
+                        <!-- Dimmed Background Simulation -->
+                        <div class="absolute inset-0 border-2 border-white/20 rounded-3xl"></div>
+                        
+                        <!-- Scanner Corners -->
+                        <div class="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-3xl"></div>
+                        <div class="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-3xl"></div>
+                        <div class="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-white rounded-bl-3xl"></div>
+                        <div class="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-white rounded-br-3xl"></div>
+                        
+                        <!-- Animated Scan Line -->
+                        <div class="absolute left-4 right-4 h-[2px] bg-blue-500 shadow-[0_0_12px_3px_rgba(59,130,246,0.6)] animate-scan"></div>
+                    </div>
+
+                    <!-- Mock Scan Button -->
+                    <button onclick="simulateScan()" class="mt-12 bg-white text-gray-900 px-6 py-3.5 rounded-full font-semibold shadow-lg active:scale-95 transition-transform flex items-center gap-2">
+                        <i data-lucide="camera" class="w-5 h-5"></i> Simulate QR Scan
+                    </button>
+                </div>
+
+                <!-- Bottom Panel -->
+                <div class="bg-black/60 pb-8 pt-4 px-6 flex justify-around items-center backdrop-blur-md absolute bottom-0 w-full z-10">
+                    <div class="flex flex-col items-center gap-2 text-white cursor-pointer">
+                        <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20"><i data-lucide="image"></i></div>
+                        <span class="text-[11px] font-medium">Upload from gallery</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-2 text-white cursor-pointer">
+                        <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20"><i data-lucide="keyboard"></i></div>
+                        <span class="text-[11px] font-medium">Pay phone number</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= CHAT SCREEN ================= -->
+            <div id="screen-chat" class="app-screen hidden h-full flex flex-col bg-[#F8F9FA]">
+                <div class="bg-white flex items-center justify-between px-4 py-3 shadow-sm z-10 border-b border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <button onclick="goHome()" class="p-2 -ml-2 text-gray-600 active:bg-gray-100 rounded-full transition-colors">
+                            <i data-lucide="arrow-left"></i>
+                        </button>
+                        <div class="flex items-center gap-3">
+                            <div id="chat-avatar" class="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium text-sm shadow-sm shrink-0"></div>
+                            <div>
+                                <h2 id="chat-name" class="text-base font-semibold text-gray-800 leading-tight">Name</h2>
+                                <p id="chat-phone" class="text-xs text-gray-500">Phone</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="p-2 text-gray-600 active:bg-gray-100 rounded-full transition-colors">
+                        <i data-lucide="more-vertical"></i>
+                    </button>
+                </div>
+
+                <div id="chat-history" class="flex-1 overflow-y-auto p-4 flex flex-col gap-6 no-scrollbar">
+                    <div class="text-center">
+                        <span class="text-xs bg-gray-200 text-gray-600 px-3 py-1 rounded-full font-medium">Joined GPay in 2024</span>
+                    </div>
+                    <!-- Populated via JS -->
+                </div>
+
+                <div class="bg-white px-4 py-3 pb-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-3xl border-t border-gray-100">
+                    <div class="flex gap-3 mb-3">
+                        <button onclick="goPayment()" class="flex-1 bg-[#1A73E8] text-white font-semibold py-3.5 rounded-full active:bg-blue-700 transition-colors shadow-md">Pay</button>
+                        <button class="flex-1 bg-blue-50 text-[#1A73E8] font-semibold py-3.5 rounded-full active:bg-blue-100 transition-colors border border-blue-100">Request</button>
+                    </div>
+                    <div class="flex items-center bg-[#F1F3F4] rounded-full px-4 py-1.5">
+                        <input type="text" placeholder="Message..." class="flex-1 bg-transparent border-none outline-none py-2 text-sm text-gray-800 placeholder-gray-500">
+                        <button class="text-[#1A73E8] p-2 pr-0"><i data-lucide="send" class="w-5 h-5"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= PAYMENT INPUT SCREEN ================= -->
+            <div id="screen-payment" class="app-screen hidden h-full flex flex-col bg-white">
+                <div class="flex items-center p-4">
+                    <button onclick="showScreen('screen-chat')" class="p-2 -ml-2 text-gray-600 active:bg-gray-100 rounded-full transition-colors">
+                        <i data-lucide="arrow-left"></i>
+                    </button>
+                </div>
+                <div class="flex-1 flex flex-col items-center justify-center px-6">
+                    <div id="pay-avatar" class="w-16 h-16 rounded-full flex items-center justify-center text-white font-medium text-2xl shadow-sm shrink-0"></div>
+                    <h2 id="pay-name" class="text-lg font-medium text-gray-800 mt-4">Paying ...</h2>
+                    <p id="pay-bank-name" class="text-sm text-gray-500 mb-8">Banking name: ...</p>
+                    
+                    <div class="flex items-center justify-center mb-6 w-full">
+                        <span class="text-4xl font-light text-gray-400 mr-1">₹</span>
+                        <span id="pay-amount-display" class="text-6xl font-light text-gray-300">0</span>
+                        <span class="w-0.5 h-12 bg-[#1A73E8] animate-pulse ml-1"></span>
+                    </div>
+
+                    <div class="bg-[#F1F3F4] rounded-2xl px-4 py-3 w-full max-w-[240px]">
+                        <input type="text" id="pay-note" placeholder="Add a note" class="bg-transparent border-none outline-none w-full text-center text-sm text-gray-800 placeholder-gray-500">
+                    </div>
+                </div>
+
+                <div class="bg-[#F8F9FA] px-4 pb-8 pt-4 rounded-t-3xl shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] border-t border-gray-100">
+                    <div class="grid grid-cols-3 gap-2 mb-4" id="pay-numpad">
+                        <!-- Populated via JS -->
+                    </div>
+                    <button id="pay-btn" onclick="submitPayment()" disabled class="w-full bg-[#1A73E8] disabled:bg-blue-300 text-white font-semibold py-4 rounded-full active:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2 text-lg">
+                        Pay <span id="pay-btn-amount"></span> <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ================= PIN ENTRY SCREEN ================= -->
+            <div id="screen-pin" class="app-screen hidden h-full flex flex-col bg-white">
+                <div class="bg-[#1A73E8] text-white p-4 pb-6 shadow-md relative overflow-hidden">
+                    <div class="absolute top-0 right-0 opacity-10 pointer-events-none">
+                        <i data-lucide="shield-check" class="w-40 h-40 transform translate-x-10 -translate-y-10"></i>
+                    </div>
+                    <div class="flex items-center mb-6 relative z-10">
+                        <button onclick="showScreen('screen-payment')" class="p-2 -ml-2 text-white active:bg-blue-600 rounded-full transition-colors">
+                            <i data-lucide="arrow-left"></i>
+                        </button>
+                        <span class="ml-2 font-medium text-lg tracking-wide">Enter UPI PIN</span>
+                    </div>
+                    <div class="relative z-10">
+                        <p id="pin-to" class="text-blue-100 text-sm mb-1">To: ...</p>
+                        <p id="pin-amount" class="text-3xl font-semibold mb-2">Sending ₹0</p>
+                        <p class="text-blue-100 text-xs font-medium bg-black/10 inline-block px-2 py-1 rounded">State Bank of India •••• 1234</p>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col items-center justify-center">
+                    <p class="text-gray-600 mb-6 font-medium">ENTER 4-DIGIT PIN</p>
+                    <div class="flex gap-4" id="pin-dots">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <div class="bg-white px-6 pb-10 pt-4 border-t border-gray-100">
+                    <div class="grid grid-cols-3 gap-y-6 gap-x-4" id="pin-numpad">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= PROCESSING SCREEN ================= -->
+            <div id="screen-processing" class="app-screen hidden h-full flex flex-col items-center justify-center bg-white">
+                <i data-lucide="loader-2" class="w-12 h-12 text-[#1A73E8] animate-spin mb-6"></i>
+                <h2 class="text-xl font-medium text-gray-800 mb-2">Processing payment</h2>
+                <p class="text-sm text-gray-500">Securely communicating with bank...</p>
+            </div>
+
+            <!-- ================= SUCCESS SCREEN ================= -->
+            <div id="screen-success" class="app-screen hidden h-full flex flex-col items-center bg-white pt-24 px-6 relative overflow-hidden">
+                <div class="absolute top-0 w-[800px] h-[800px] bg-blue-50 rounded-full transform -translate-y-[60%] -z-10"></div>
+                
+                <div class="w-24 h-24 bg-[#1A73E8] text-white rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(26,115,232,0.4)] mb-8 animate-bounce-once">
+                    <i data-lucide="check-circle-2" class="w-14 h-14" stroke-width="2.5"></i>
+                </div>
+
+                <h1 id="success-amount" class="text-3xl font-semibold text-gray-800 mb-1 animate-fade-in opacity-0" style="animation-delay: 0.1s;">₹0</h1>
+                <p id="success-to" class="text-gray-600 mb-8 animate-fade-in opacity-0" style="animation-delay: 0.3s;">Paid to ...</p>
+
+                <div id="success-note-container" class="hidden bg-[#F8F9FA] rounded-2xl px-6 py-3 mb-12 border border-gray-100 animate-fade-in opacity-0" style="animation-delay: 0.5s;">
+                    <p id="success-note" class="text-sm text-gray-600 italic">"..."</p>
+                </div>
+
+                <button onclick="goHome()" class="mt-auto mb-10 w-full bg-gray-100 text-gray-800 font-semibold py-4 rounded-full active:bg-gray-200 transition-colors shadow-sm">
+                    Done
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Home indicator bar -->
+        <div class="h-1.5 w-1/3 bg-gray-300 absolute bottom-2 left-1/2 transform -translate-x-1/2 rounded-full pointer-events-none z-50"></div>
+    </div>
+
+    <!-- ================= JAVASCRIPT LOGIC ================= -->
+    <script>
+        // MOCK DATA - INDIAN CONTEXT
+        const MOCK_CONTACTS = [
+            { id: '1', name: 'Aarav Sharma', initials: 'AS', color: 'bg-purple-500', phone: '+91 98765 43210' },
+            { id: '2', name: 'Priya Patel', initials: 'PP', color: 'bg-green-600', phone: '+91 87654 32109' },
+            { id: '3', name: 'Mom', initials: 'M', color: 'bg-rose-500', phone: '+91 76543 21098' },
+            { id: '4', name: 'Rahul Verma', initials: 'RV', color: 'bg-blue-500', phone: '+91 65432 10987' },
+            { id: '5', name: 'Neha Gupta', initials: 'NG', color: 'bg-amber-500', phone: '+91 54321 09876' },
+        ];
+
+        const MOCK_BUSINESSES = [
+            { id: 'b1', name: 'Mobile Recharge', icon: 'smartphone', color: 'bg-blue-100 text-blue-600' },
+            { id: 'b2', name: 'Electricity', icon: 'receipt', color: 'bg-orange-100 text-orange-600' },
+            { id: 'b3', name: 'DTH / Cable', icon: 'landmark', color: 'bg-teal-100 text-teal-600' },
+        ];
+
+        const MOCK_HISTORY = [
+            { id: 't1', contactId: '1', type: 'sent', amount: '250', date: 'Today', status: 'Success' },
+            { id: 't2', contactId: '2', type: 'received', amount: '1500', date: 'Yesterday', status: 'Success' },
+            { id: 't3', contactId: '3', type: 'sent', amount: '100', date: 'May 12', status: 'Success' },
+        ];
+
+        const MOCK_CHAT_HISTORY = [
+            { id: 'c1', type: 'payment_sent', amount: '140', note: 'Lunch yesterday', date: 'May 10' },
+            { id: 'c2', type: 'payment_received', amount: '200', note: 'Movie tickets', date: 'May 12' },
+            { id: 'c3', type: 'message_received', text: 'Hey, can you send me the money for the WiFi bill?', date: 'Yesterday' },
+        ];
+
+        // STATE
+        let activeContact = null;
+        let paymentAmount = '0';
+        let pinCode = '';
+
+        // INIT
+        document.addEventListener('DOMContentLoaded', () => {
+            renderHomeData();
+            renderNumpads();
+            lucide.createIcons();
+        });
+
+        // NAVIGATION
+        function showScreen(screenId) {
+            document.querySelectorAll('.app-screen').forEach(el => el.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function showScanner() {
+            showScreen('screen-scanner');
+        }
+
+        function simulateScan() {
+            // Pick a random contact to act as the scanned QR payee
+            const randomContact = MOCK_CONTACTS[Math.floor(Math.random() * MOCK_CONTACTS.length)];
+            activeContact = randomContact;
+            goPayment();
+        }
+
+        function goHome() {
+            activeContact = null;
+            paymentAmount = '0';
+            pinCode = '';
+            document.getElementById('pay-note').value = '';
+            showScreen('screen-home');
+        }
+
+        function goChat(contactId) {
+            activeContact = MOCK_CONTACTS.find(c => c.id === contactId);
+            
+            // Populate Chat Header
+            const avatar = document.getElementById('chat-avatar');
+            avatar.className = `w-10 h-10 rounded-full flex items-center justify-center text-white font-medium text-sm shadow-sm shrink-0 ${activeContact.color}`;
+            avatar.innerText = activeContact.initials;
+            document.getElementById('chat-name').innerText = activeContact.name;
+            document.getElementById('chat-phone').innerText = activeContact.phone;
+
+            renderChatHistory();
+            showScreen('screen-chat');
+        }
+
+        function goPayment() {
+            paymentAmount = '0';
+            updateAmountDisplay();
+            
+            // Populate Payment Header
+            const avatar = document.getElementById('pay-avatar');
+            avatar.className = `w-16 h-16 rounded-full flex items-center justify-center text-white font-medium text-2xl shadow-sm shrink-0 ${activeContact.color}`;
+            avatar.innerText = activeContact.initials;
+            document.getElementById('pay-name').innerText = `Paying ${activeContact.name}`;
+            document.getElementById('pay-bank-name').innerText = `Banking name: ${activeContact.name.toUpperCase()}`;
+            
+            showScreen('screen-payment');
+        }
+
+        function submitPayment() {
+            if (paymentAmount === '0' || paymentAmount === '0.') return;
+            pinCode = '';
+            renderPinDots();
+
+            document.getElementById('pin-to').innerText = `To: ${activeContact.name}`;
+            document.getElementById('pin-amount').innerText = `Sending ₹${paymentAmount}`;
+            
+            showScreen('screen-pin');
+        }
+
+        // RENDER FUNCTIONS
+        function renderHomeData() {
+            // People
+            const peopleContainer = document.getElementById('people-list');
+            peopleContainer.innerHTML = MOCK_CONTACTS.map(c => `
+                <div class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform" onclick="goChat('${c.id}')">
+                    <div class="w-14 h-14 ${c.color} rounded-full flex items-center justify-center text-white font-medium text-lg shadow-sm shrink-0">${c.initials}</div>
+                    <span class="text-xs text-gray-700 font-medium truncate w-16 text-center">${c.name.split(' ')[0]}</span>
+                </div>
+            `).join('');
+
+            // Businesses
+            const bizContainer = document.getElementById('businesses-list');
+            bizContainer.innerHTML = MOCK_BUSINESSES.map(b => `
+                <div class="flex flex-col items-center gap-2 cursor-pointer">
+                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center ${b.color}">
+                        <i data-lucide="${b.icon}"></i>
+                    </div>
+                    <span class="text-xs text-gray-700 font-medium text-center w-16 leading-tight">${b.name}</span>
+                </div>
+            `).join('');
+
+            // History
+            const historyContainer = document.getElementById('history-list');
+            historyContainer.innerHTML = MOCK_HISTORY.map((txn, idx) => {
+                const contact = MOCK_CONTACTS.find(c => c.id === txn.contactId) || { initials: 'U', color: 'bg-gray-400', name: 'Unknown' };
+                const isSent = txn.type === 'sent';
+                const border = idx !== MOCK_HISTORY.length - 1 ? 'border-b border-gray-50' : '';
+                
+                return `
+                    <div class="flex items-center justify-between p-3 ${border}">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 ${contact.color} rounded-full flex items-center justify-center text-white font-medium text-sm shadow-sm shrink-0">${contact.initials}</div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-800">${contact.name}</p>
+                                <p class="text-xs text-gray-500">${txn.date}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-semibold ${isSent ? 'text-gray-800' : 'text-green-600'}">${isSent ? '-' : '+'}₹${txn.amount}</p>
+                            <p class="text-xs text-gray-500 flex items-center justify-end gap-1">
+                                ${txn.status} <i data-lucide="check-circle-2" class="w-3 h-3 text-green-500"></i>
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderChatHistory() {
+            const container = document.getElementById('chat-history');
+            const msgsHTML = MOCK_CHAT_HISTORY.map(item => {
+                if (item.type === 'message_received') {
+                    return `
+                        <div class="flex flex-col items-start max-w-[80%]">
+                            <div class="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm text-sm">
+                                ${item.text}
+                            </div>
+                            <span class="text-[10px] text-gray-400 mt-1 ml-1">${item.date}</span>
+                        </div>
+                    `;
+                }
+                const isSent = item.type === 'payment_sent';
+                const icon = isSent ? 'arrow-up-right' : 'arrow-down-left';
+                const iconBg = isSent ? 'bg-[#1A73E8] text-white' : 'bg-green-100 text-green-600';
+                const bubbleStyle = isSent ? 'bg-blue-50 border border-blue-100 rounded-tr-sm' : 'bg-white border border-gray-200 rounded-tl-sm';
+                const align = isSent ? 'items-end' : 'items-start';
+
+                return `
+                    <div class="flex flex-col ${align}">
+                        <div class="p-4 rounded-3xl w-64 shadow-sm ${bubbleStyle}">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center ${iconBg}">
+                                    <i data-lucide="${icon}" class="w-4 h-4"></i>
+                                </div>
+                                <span class="text-xl font-semibold text-gray-800">₹${item.amount}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-2">${item.note}</p>
+                            <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-200/60">
+                                <span class="text-xs font-medium text-gray-500">${isSent ? 'You paid' : 'Paid you'}</span>
+                                <div class="flex items-center gap-1 text-[#1A73E8]">
+                                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                                    <span class="text-xs font-medium">Success</span>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] text-gray-400 mt-1 mx-1">${item.date}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            // Keep the 'joined' banner
+            container.innerHTML = `
+                <div class="text-center">
+                    <span class="text-xs bg-gray-200 text-gray-600 px-3 py-1 rounded-full font-medium">Joined GPay in 2024</span>
+                </div>
+                ${msgsHTML}
+            `;
+        }
+
+        function renderNumpads() {
+            const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'];
+            const pinKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0'];
+
+            // Payment Pad
+            document.getElementById('pay-numpad').innerHTML = keys.map(k => `
+                <button onclick="handlePayKey('${k}')" class="py-4 text-2xl font-medium text-gray-800 active:bg-gray-200 rounded-2xl transition-colors">${k}</button>
+            `).join('') + `
+                <button onclick="handlePayKey('back')" class="py-4 flex items-center justify-center text-gray-800 active:bg-gray-200 rounded-2xl transition-colors">
+                    <i data-lucide="delete"></i>
+                </button>
+            `;
+
+            // PIN Pad
+            document.getElementById('pin-numpad').innerHTML = pinKeys.map(k => `
+                <button onclick="${k ? `handlePinKey('${k}')` : ''}" class="py-3 text-2xl font-medium text-gray-800 active:bg-gray-100 rounded-full transition-colors ${!k ? 'invisible' : ''}">${k}</button>
+            `).join('') + `
+                <button onclick="handlePinKey('back')" class="py-3 flex items-center justify-center text-gray-800 active:bg-gray-100 rounded-full transition-colors">
+                    <i data-lucide="delete"></i>
+                </button>
+            `;
+        }
+
+        // LOGIC HANDLERS
+        function handlePayKey(val) {
+            if (val === 'back') {
+                paymentAmount = paymentAmount.length > 1 ? paymentAmount.slice(0, -1) : '0';
+            } else if (val === '.') {
+                if (!paymentAmount.includes('.')) paymentAmount += '.';
+            } else {
+                if (paymentAmount === '0') paymentAmount = val;
+                else if (paymentAmount.replace('.', '').length < 6) paymentAmount += val;
+            }
+            updateAmountDisplay();
+        }
+
+        function updateAmountDisplay() {
+            const display = document.getElementById('pay-amount-display');
+            const btn = document.getElementById('pay-btn');
+            const btnAmount = document.getElementById('pay-btn-amount');
+            
+            display.innerText = paymentAmount;
+            
+            if (paymentAmount !== '0' && paymentAmount !== '0.') {
+                display.classList.remove('text-gray-300');
+                display.classList.add('text-gray-800');
+                btn.removeAttribute('disabled');
+                btnAmount.innerText = `₹${paymentAmount}`;
+            } else {
+                display.classList.add('text-gray-300');
+                display.classList.remove('text-gray-800');
+                btn.setAttribute('disabled', 'true');
+                btnAmount.innerText = '';
+            }
+        }
+
+        function handlePinKey(val) {
+            if (val === 'back') {
+                pinCode = pinCode.slice(0, -1);
+            } else {
+                if (pinCode.length < 4) {
+                    pinCode += val;
+                }
+            }
+            renderPinDots();
+
+            if (pinCode.length === 4) {
+                setTimeout(processPayment, 300);
+            }
+        }
+
+        function renderPinDots() {
+            document.getElementById('pin-dots').innerHTML = [0,1,2,3].map(idx => `
+                <div class="w-4 h-4 rounded-full border-2 ${pinCode.length > idx ? 'bg-gray-800 border-gray-800' : 'border-gray-300'}"></div>
+            `).join('');
+        }
+
+        function processPayment() {
+            showScreen('screen-processing');
+            
+            setTimeout(() => {
+                showSuccess();
+            }, 2500);
+        }
+
+        function showSuccess() {
+            document.getElementById('success-amount').innerText = `₹${paymentAmount}`;
+            document.getElementById('success-to').innerText = `Paid to ${activeContact.name}`;
+            
+            const note = document.getElementById('pay-note').value;
+            const noteContainer = document.getElementById('success-note-container');
+            if (note) {
+                document.getElementById('success-note').innerText = `"${note}"`;
+                noteContainer.classList.remove('hidden');
+            } else {
+                noteContainer.classList.add('hidden');
+            }
+
+            // Remove and re-add animation classes to re-trigger them
+            const animatedElems = document.querySelectorAll('#screen-success .animate-fade-in');
+            animatedElems.forEach(el => {
+                el.style.animation = 'none';
+                el.offsetHeight; // trigger reflow
+                el.style.animation = null; 
+            });
+
+            showScreen('screen-success');
+        }
+
+    </script>
+</body>
+</html>
