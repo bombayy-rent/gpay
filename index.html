@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- HTML5 QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
     <style>
         /* Hide scrollbar but allow scrolling */
@@ -42,6 +44,21 @@
         .animate-scan {
             animation: scan-line 2s infinite linear;
         }
+
+        /* Overrides for the injected QR Scanner video */
+        #qr-reader {
+            border: none !important;
+        }
+        #qr-reader video {
+            object-fit: cover !important;
+            border-radius: 1.5rem !important;
+        }
+        #qr-reader__scan_region {
+            background-color: #111827 !important; /* bg-gray-900 */
+        }
+        #qr-reader__dashboard {
+            display: none !important; /* Hide default UI, we build our own */
+        }
     </style>
 </head>
 <body class="bg-gray-200 font-sans sm:py-6 flex justify-center items-center min-h-screen">
@@ -51,7 +68,7 @@
         
         <!-- Status Bar Mock -->
         <div class="h-7 w-full bg-transparent absolute top-0 z-50 flex justify-between items-center px-5 pointer-events-none">
-            <span class="text-[11px] font-medium text-gray-800">9:41</span>
+            <span class="text-[11px] font-medium text-gray-800" id="status-clock">9:41</span>
             <div class="flex items-center gap-1">
                 <div class="w-3 h-3 rounded-full border border-gray-800 relative"><div class="absolute inset-0.5 bg-gray-800 rounded-full"></div></div>
             </div>
@@ -72,7 +89,7 @@
                         <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-medium text-sm shadow-sm shrink-0">JD</div>
                     </div>
                     <!-- Scan Header -->
-                    <div class="flex justify-between items-center mb-6 px-2 cursor-pointer active:scale-95 transition-transform" onclick="showScanner()">
+                    <div class="flex justify-between items-center mb-6 px-2 cursor-pointer active:scale-95 transition-transform" onclick="startScanner()">
                         <div>
                             <h1 class="text-2xl font-semibold text-gray-800">Scan any QR code</h1>
                             <p class="text-sm text-gray-500">Pay anywhere, securely</p>
@@ -139,8 +156,8 @@
             <!-- ================= SCANNER SCREEN ================= -->
             <div id="screen-scanner" class="app-screen hidden h-full flex flex-col bg-gray-900 relative">
                 <!-- Header -->
-                <div class="flex justify-between items-center p-4 relative z-10">
-                    <button onclick="goHome()" class="p-2 text-white bg-black/30 rounded-full backdrop-blur-sm active:bg-black/50 transition-colors">
+                <div class="flex justify-between items-center p-4 relative z-20">
+                    <button onclick="stopScannerAndGoHome()" class="p-2 text-white bg-black/30 rounded-full backdrop-blur-sm active:bg-black/50 transition-colors">
                         <i data-lucide="x"></i>
                     </button>
                     <div class="flex gap-4">
@@ -150,31 +167,34 @@
                 </div>
 
                 <!-- Viewfinder -->
-                <div class="flex-1 flex flex-col items-center justify-center relative z-10 pb-20">
-                    <p class="text-white text-sm mb-8 bg-black/50 px-5 py-2 rounded-full backdrop-blur-sm">Point at a QR code to scan</p>
+                <div class="flex-1 flex flex-col items-center justify-center relative z-10 pb-20 px-6">
+                    <p id="scanner-status" class="text-white text-sm mb-8 bg-black/50 px-5 py-2 rounded-full backdrop-blur-sm z-20">Point at a QR code to scan</p>
                     
-                    <div class="w-64 h-64 relative">
+                    <div class="w-full aspect-square max-w-[300px] relative">
+                        <!-- Actual Camera Feed Injector -->
+                        <div id="qr-reader" class="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-gray-800"></div>
+                        
                         <!-- Dimmed Background Simulation -->
-                        <div class="absolute inset-0 border-2 border-white/20 rounded-3xl"></div>
+                        <div class="absolute inset-0 border-2 border-white/20 rounded-3xl pointer-events-none z-10"></div>
                         
                         <!-- Scanner Corners -->
-                        <div class="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-3xl"></div>
-                        <div class="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-3xl"></div>
-                        <div class="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-white rounded-bl-3xl"></div>
-                        <div class="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-white rounded-br-3xl"></div>
+                        <div class="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-3xl pointer-events-none z-10"></div>
+                        <div class="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-3xl pointer-events-none z-10"></div>
+                        <div class="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-white rounded-bl-3xl pointer-events-none z-10"></div>
+                        <div class="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-white rounded-br-3xl pointer-events-none z-10"></div>
                         
                         <!-- Animated Scan Line -->
-                        <div class="absolute left-4 right-4 h-[2px] bg-blue-500 shadow-[0_0_12px_3px_rgba(59,130,246,0.6)] animate-scan"></div>
+                        <div class="absolute left-4 right-4 h-[2px] bg-blue-500 shadow-[0_0_12px_3px_rgba(59,130,246,0.6)] animate-scan pointer-events-none z-10"></div>
                     </div>
 
-                    <!-- Mock Scan Button -->
-                    <button onclick="simulateScan()" class="mt-12 bg-white text-gray-900 px-6 py-3.5 rounded-full font-semibold shadow-lg active:scale-95 transition-transform flex items-center gap-2">
+                    <!-- Mock Scan Button (Fallback if camera is denied) -->
+                    <button onclick="simulateScan()" class="mt-12 bg-white text-gray-900 px-6 py-3.5 rounded-full font-semibold shadow-lg active:scale-95 transition-transform flex items-center gap-2 z-20">
                         <i data-lucide="camera" class="w-5 h-5"></i> Simulate QR Scan
                     </button>
                 </div>
 
                 <!-- Bottom Panel -->
-                <div class="bg-black/60 pb-8 pt-4 px-6 flex justify-around items-center backdrop-blur-md absolute bottom-0 w-full z-10">
+                <div class="bg-black/60 pb-8 pt-4 px-6 flex justify-around items-center backdrop-blur-md absolute bottom-0 w-full z-20">
                     <div class="flex flex-col items-center gap-2 text-white cursor-pointer">
                         <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20"><i data-lucide="image"></i></div>
                         <span class="text-[11px] font-medium">Upload from gallery</span>
@@ -228,14 +248,14 @@
             <!-- ================= PAYMENT INPUT SCREEN ================= -->
             <div id="screen-payment" class="app-screen hidden h-full flex flex-col bg-white">
                 <div class="flex items-center p-4">
-                    <button onclick="showScreen('screen-chat')" class="p-2 -ml-2 text-gray-600 active:bg-gray-100 rounded-full transition-colors">
+                    <button onclick="goHome()" class="p-2 -ml-2 text-gray-600 active:bg-gray-100 rounded-full transition-colors">
                         <i data-lucide="arrow-left"></i>
                     </button>
                 </div>
                 <div class="flex-1 flex flex-col items-center justify-center px-6">
                     <div id="pay-avatar" class="w-16 h-16 rounded-full flex items-center justify-center text-white font-medium text-2xl shadow-sm shrink-0"></div>
-                    <h2 id="pay-name" class="text-lg font-medium text-gray-800 mt-4">Paying ...</h2>
-                    <p id="pay-bank-name" class="text-sm text-gray-500 mb-8">Banking name: ...</p>
+                    <h2 id="pay-name" class="text-lg font-medium text-gray-800 mt-4 text-center leading-tight">Paying ...</h2>
+                    <p id="pay-bank-name" class="text-sm text-gray-500 mb-8 truncate w-full text-center">Banking name: ...</p>
                     
                     <div class="flex items-center justify-center mb-6 w-full">
                         <span class="text-4xl font-light text-gray-400 mr-1">₹</span>
@@ -271,7 +291,7 @@
                         <span class="ml-2 font-medium text-lg tracking-wide">Enter UPI PIN</span>
                     </div>
                     <div class="relative z-10">
-                        <p id="pin-to" class="text-blue-100 text-sm mb-1">To: ...</p>
+                        <p id="pin-to" class="text-blue-100 text-sm mb-1 truncate">To: ...</p>
                         <p id="pin-amount" class="text-3xl font-semibold mb-2">Sending ₹0</p>
                         <p class="text-blue-100 text-xs font-medium bg-black/10 inline-block px-2 py-1 rounded">State Bank of India •••• 1234</p>
                     </div>
@@ -299,21 +319,53 @@
             </div>
 
             <!-- ================= SUCCESS SCREEN ================= -->
-            <div id="screen-success" class="app-screen hidden h-full flex flex-col items-center bg-white pt-24 px-6 relative overflow-hidden">
-                <div class="absolute top-0 w-[800px] h-[800px] bg-blue-50 rounded-full transform -translate-y-[60%] -z-10"></div>
+            <div id="screen-success" class="app-screen hidden h-full flex flex-col items-center bg-white pt-20 px-6 relative overflow-y-auto no-scrollbar">
+                <div class="absolute top-0 w-[800px] h-[800px] bg-blue-50 rounded-full transform -translate-y-[65%] -z-10"></div>
                 
-                <div class="w-24 h-24 bg-[#1A73E8] text-white rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(26,115,232,0.4)] mb-8 animate-bounce-once">
-                    <i data-lucide="check-circle-2" class="w-14 h-14" stroke-width="2.5"></i>
+                <div class="w-20 h-20 bg-[#1A73E8] text-white rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(26,115,232,0.4)] mb-6 animate-bounce-once shrink-0">
+                    <i data-lucide="check-circle-2" class="w-12 h-12" stroke-width="2.5"></i>
                 </div>
 
-                <h1 id="success-amount" class="text-3xl font-semibold text-gray-800 mb-1 animate-fade-in opacity-0" style="animation-delay: 0.1s;">₹0</h1>
-                <p id="success-to" class="text-gray-600 mb-8 animate-fade-in opacity-0" style="animation-delay: 0.3s;">Paid to ...</p>
+                <h1 id="success-amount" class="text-4xl font-semibold text-gray-800 mb-1 animate-fade-in opacity-0" style="animation-delay: 0.1s;">₹0</h1>
+                <p id="success-to" class="text-gray-800 font-medium text-lg animate-fade-in opacity-0 text-center" style="animation-delay: 0.2s;">Paid to ...</p>
+                <p id="success-phone" class="text-sm text-gray-500 mb-6 animate-fade-in opacity-0 text-center" style="animation-delay: 0.3s;">...</p>
 
-                <div id="success-note-container" class="hidden bg-[#F8F9FA] rounded-2xl px-6 py-3 mb-12 border border-gray-100 animate-fade-in opacity-0" style="animation-delay: 0.5s;">
-                    <p id="success-note" class="text-sm text-gray-600 italic">"..."</p>
+                <!-- Receipt Card -->
+                <div class="w-full bg-white rounded-2xl p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 mb-8 animate-fade-in opacity-0 text-left relative z-10" style="animation-delay: 0.5s; max-width: 340px;">
+                    
+                    <div id="success-note-container" class="hidden mb-4 pb-4 border-b border-dashed border-gray-200">
+                        <p class="text-xs text-gray-500 mb-1">Note</p>
+                        <p id="success-note" class="text-sm text-gray-800 font-medium">"..."</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-xs text-gray-500 mb-1">UPI transaction ID</p>
+                        <div class="flex justify-between items-center">
+                            <p id="success-utr" class="text-sm text-gray-800 font-medium tracking-wide">...</p>
+                            <i data-lucide="copy" class="w-4 h-4 text-gray-400"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-xs text-gray-500 mb-1">Date & Time</p>
+                        <p id="success-date" class="text-sm text-gray-800 font-medium">...</p>
+                    </div>
+                    
+                    <div class="pt-4 border-t border-dashed border-gray-200">
+                        <p class="text-xs text-gray-500 mb-1">Paid from</p>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 bg-blue-100 text-[#1A73E8] rounded-full flex items-center justify-center shrink-0">
+                                <i data-lucide="landmark" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-800 font-medium">State Bank of India</p>
+                                <p class="text-xs text-gray-500">A/c No. •••• 1234</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <button onclick="goHome()" class="mt-auto mb-10 w-full bg-gray-100 text-gray-800 font-semibold py-4 rounded-full active:bg-gray-200 transition-colors shadow-sm">
+                <button onclick="goHome()" class="mt-auto mb-6 w-full max-w-[340px] bg-white border border-gray-200 text-[#1A73E8] font-semibold py-3.5 rounded-full active:bg-gray-50 transition-colors shadow-sm">
                     Done
                 </button>
             </div>
@@ -357,30 +409,69 @@
         let activeContact = null;
         let paymentAmount = '0';
         let pinCode = '';
+        let html5QrCode = null;
 
         // INIT
         document.addEventListener('DOMContentLoaded', () => {
             renderHomeData();
             renderNumpads();
+            updateMockClock();
+            setInterval(updateMockClock, 60000);
             lucide.createIcons();
         });
+
+        // TIME UTILS
+        function updateMockClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            hours = hours % 12 || 12;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('status-clock').innerText = `${hours}:${minutes}`;
+        }
+
+        // AUDIO SYNTHESIS FOR THE G-PAY SUCCESS CHIME
+        function playSuccessSound() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+
+                // Plays a specific frequency note
+                const playNote = (freq, startTime, duration) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    
+                    osc.type = 'sine'; // Smooth clean tone
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    
+                    // Envelope for nice fade in/out
+                    gain.gain.setValueAtTime(0, startTime);
+                    gain.gain.linearRampToValueAtTime(0.5, startTime + 0.05); // Attack
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration); // Decay
+                    
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    
+                    osc.start(startTime);
+                    osc.stop(startTime + duration);
+                };
+
+                const now = ctx.currentTime;
+                // The classic double-tone chime (A5 followed quickly by C#6)
+                playNote(880, now, 0.2);           // A5
+                playNote(1108.73, now + 0.15, 0.5); // C#6
+            } catch (e) {
+                console.log("Audio API not supported or blocked by browser policy.");
+            }
+        }
 
         // NAVIGATION
         function showScreen(screenId) {
             document.querySelectorAll('.app-screen').forEach(el => el.classList.add('hidden'));
             document.getElementById(screenId).classList.remove('hidden');
             lucide.createIcons();
-        }
-
-        function showScanner() {
-            showScreen('screen-scanner');
-        }
-
-        function simulateScan() {
-            // Pick a random contact to act as the scanned QR payee
-            const randomContact = MOCK_CONTACTS[Math.floor(Math.random() * MOCK_CONTACTS.length)];
-            activeContact = randomContact;
-            goPayment();
         }
 
         function goHome() {
@@ -390,6 +481,99 @@
             document.getElementById('pay-note').value = '';
             showScreen('screen-home');
         }
+
+        // --- CAMERA SCANNER LOGIC ---
+
+        function startScanner() {
+            showScreen('screen-scanner');
+            document.getElementById('scanner-status').innerText = 'Starting camera...';
+            
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("qr-reader");
+            }
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            // Start video stream
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+                .then(() => {
+                    document.getElementById('scanner-status').innerText = 'Point at a QR code to scan';
+                })
+                .catch((err) => {
+                    console.error("Camera Error:", err);
+                    document.getElementById('scanner-status').innerText = 'Camera access denied or unavailable.';
+                });
+        }
+
+        function stopScannerAndGoHome() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    goHome();
+                }).catch(err => {
+                    console.error("Failed to stop scanner.", err);
+                    goHome();
+                });
+            } else {
+                goHome();
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Stop scanning once we hit a result
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(e => console.error(e));
+            }
+
+            // Parse the UPI Intent URL (e.g., upi://pay?pa=merchant@upi&pn=Merchant%20Name)
+            let merchantName = "Verified Vendor";
+            let upiId = decodedText.substring(0, 20) + "..."; // Fallback display
+
+            try {
+                if (decodedText.toLowerCase().startsWith('upi://')) {
+                    // Create a URL object to parse parameters easily
+                    const url = new URL(decodedText.replace('upi://', 'http://')); // Hack to use JS URL parser
+                    if (url.searchParams.get('pn')) {
+                        merchantName = decodeURIComponent(url.searchParams.get('pn').replace(/\+/g, ' '));
+                    }
+                    if (url.searchParams.get('pa')) {
+                        upiId = url.searchParams.get('pa');
+                    }
+                } else {
+                    // If it's just raw text, use it as the name
+                    merchantName = decodedText.split(' ')[0] + " Vendor";
+                }
+            } catch (e) {
+                console.error("Parsing error:", e);
+            }
+
+            // Generate initials
+            const words = merchantName.split(' ');
+            const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : merchantName[0].toUpperCase();
+
+            // Build a dynamic contact
+            activeContact = {
+                id: 'scanned_' + Date.now(),
+                name: merchantName,
+                initials: initials,
+                color: 'bg-indigo-600',
+                phone: upiId
+            };
+
+            goPayment();
+        }
+
+        function simulateScan() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(e => console.error(e));
+            }
+            // Pick a random contact to act as the scanned QR payee
+            const randomContact = MOCK_CONTACTS[Math.floor(Math.random() * MOCK_CONTACTS.length)];
+            activeContact = randomContact;
+            goPayment();
+        }
+
+        // --- END CAMERA LOGIC ---
 
         function goChat(contactId) {
             activeContact = MOCK_CONTACTS.find(c => c.id === contactId);
@@ -616,9 +800,12 @@
         }
 
         function showSuccess() {
+            // Setup Basic Info
             document.getElementById('success-amount').innerText = `₹${paymentAmount}`;
             document.getElementById('success-to').innerText = `Paid to ${activeContact.name}`;
+            document.getElementById('success-phone').innerText = activeContact.phone || "UPI User";
             
+            // Note Display
             const note = document.getElementById('pay-note').value;
             const noteContainer = document.getElementById('success-note-container');
             if (note) {
@@ -628,6 +815,17 @@
                 noteContainer.classList.add('hidden');
             }
 
+            // Generate Realistic UTR (12 digits, often starts with year/day indicators, e.g., 4...)
+            const fakeUTR = '4' + Math.floor(10000000000 + Math.random() * 90000000000);
+            document.getElementById('success-utr').innerText = fakeUTR;
+
+            // Generate Current Date/Time in GPay format (e.g., 8 Jun 2026, 3:16 PM)
+            const now = new Date();
+            const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+            const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+            const dateString = `${now.toLocaleDateString('en-IN', dateOptions)}, ${now.toLocaleTimeString('en-IN', timeOptions).toUpperCase()}`;
+            document.getElementById('success-date').innerText = dateString;
+
             // Remove and re-add animation classes to re-trigger them
             const animatedElems = document.querySelectorAll('#screen-success .animate-fade-in');
             animatedElems.forEach(el => {
@@ -636,7 +834,13 @@
                 el.style.animation = null; 
             });
 
+            // Play the Sound and Show the Screen
             showScreen('screen-success');
+            
+            // Slight delay before sound so it matches the visual tick landing
+            setTimeout(() => {
+                playSuccessSound();
+            }, 100); 
         }
 
     </script>
