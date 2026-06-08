@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GPay</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg">
+
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -45,6 +53,22 @@
             animation: scan-line 2s infinite linear;
         }
 
+        /* Slide Transitions */
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        .screen-enter {
+            animation: slideInRight 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        .screen-back {
+            animation: slideInLeft 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
         /* Overrides for the injected QR Scanner video */
         #qr-reader {
             border: none !important;
@@ -54,10 +78,10 @@
             border-radius: 1.5rem !important;
         }
         #qr-reader__scan_region {
-            background-color: #111827 !important; /* bg-gray-900 */
+            background-color: #111827 !important;
         }
         #qr-reader__dashboard {
-            display: none !important; /* Hide default UI, we build our own */
+            display: none !important;
         }
     </style>
 </head>
@@ -75,7 +99,7 @@
         </div>
 
         <!-- App Container -->
-        <div class="flex-1 pt-7 h-full relative" id="app-container">
+        <div class="flex-1 pt-7 h-full relative overflow-x-hidden" id="app-container">
             
             <!-- ================= HOME SCREEN ================= -->
             <div id="screen-home" class="app-screen h-full flex flex-col bg-[#F8F9FA] overflow-y-auto pb-20 no-scrollbar">
@@ -147,7 +171,7 @@
                         <h2 class="text-lg font-semibold text-gray-800">Recent transactions</h2>
                         <i data-lucide="history" class="text-gray-400 w-5 h-5"></i>
                     </div>
-                    <div id="history-list" class="bg-white rounded-3xl p-2 shadow-sm border border-gray-100">
+                    <div id="history-list" class="bg-white rounded-3xl p-2 shadow-sm border border-gray-100 flex flex-col gap-0">
                         <!-- Populated via JS -->
                     </div>
                 </div>
@@ -285,7 +309,7 @@
                         <i data-lucide="shield-check" class="w-40 h-40 transform translate-x-10 -translate-y-10"></i>
                     </div>
                     <div class="flex items-center mb-6 relative z-10">
-                        <button onclick="showScreen('screen-payment')" class="p-2 -ml-2 text-white active:bg-blue-600 rounded-full transition-colors">
+                        <button onclick="showScreen('screen-payment', true)" class="p-2 -ml-2 text-white active:bg-blue-600 rounded-full transition-colors">
                             <i data-lucide="arrow-left"></i>
                         </button>
                         <span class="ml-2 font-medium text-lg tracking-wide">Enter UPI PIN</span>
@@ -393,10 +417,10 @@
             { id: 'b3', name: 'DTH / Cable', icon: 'landmark', color: 'bg-teal-100 text-teal-600' },
         ];
 
-        const MOCK_HISTORY = [
-            { id: 't1', contactId: '1', type: 'sent', amount: '250', date: 'Today', status: 'Success' },
-            { id: 't2', contactId: '2', type: 'received', amount: '1500', date: 'Yesterday', status: 'Success' },
-            { id: 't3', contactId: '3', type: 'sent', amount: '100', date: 'May 12', status: 'Success' },
+        const DEFAULT_HISTORY = [
+            { id: 't1', contactId: '1', name: 'Aarav Sharma', type: 'sent', amount: '250', date: 'Today', status: 'Success' },
+            { id: 't2', contactId: '2', name: 'Priya Patel', type: 'received', amount: '1500', date: 'Yesterday', status: 'Success' },
+            { id: 't3', contactId: '3', name: 'Mom', type: 'sent', amount: '100', date: 'May 12', status: 'Success' },
         ];
 
         const MOCK_CHAT_HISTORY = [
@@ -410,6 +434,7 @@
         let paymentAmount = '0';
         let pinCode = '';
         let html5QrCode = null;
+        let currentHistory = JSON.parse(localStorage.getItem('gpay_history')) || DEFAULT_HISTORY;
 
         // INIT
         document.addEventListener('DOMContentLoaded', () => {
@@ -438,18 +463,16 @@
                 
                 const ctx = new AudioContext();
 
-                // Plays a specific frequency note
                 const playNote = (freq, startTime, duration) => {
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
                     
-                    osc.type = 'sine'; // Smooth clean tone
+                    osc.type = 'sine'; 
                     osc.frequency.setValueAtTime(freq, startTime);
                     
-                    // Envelope for nice fade in/out
                     gain.gain.setValueAtTime(0, startTime);
-                    gain.gain.linearRampToValueAtTime(0.5, startTime + 0.05); // Attack
-                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration); // Decay
+                    gain.gain.linearRampToValueAtTime(0.5, startTime + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
                     
                     osc.connect(gain);
                     gain.connect(ctx.destination);
@@ -459,18 +482,23 @@
                 };
 
                 const now = ctx.currentTime;
-                // The classic double-tone chime (A5 followed quickly by C#6)
-                playNote(880, now, 0.2);           // A5
-                playNote(1108.73, now + 0.15, 0.5); // C#6
+                playNote(880, now, 0.2);           
+                playNote(1108.73, now + 0.15, 0.5); 
             } catch (e) {
-                console.log("Audio API not supported or blocked by browser policy.");
+                console.log("Audio blocked.");
             }
         }
 
-        // NAVIGATION
-        function showScreen(screenId) {
-            document.querySelectorAll('.app-screen').forEach(el => el.classList.add('hidden'));
-            document.getElementById(screenId).classList.remove('hidden');
+        // NAVIGATION WITH SLIDE ANIMATIONS
+        function showScreen(screenId, isBack = false) {
+            document.querySelectorAll('.app-screen').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('screen-enter', 'screen-back');
+            });
+            
+            const activeScreen = document.getElementById(screenId);
+            activeScreen.classList.remove('hidden');
+            activeScreen.classList.add(isBack ? 'screen-back' : 'screen-enter');
             lucide.createIcons();
         }
 
@@ -479,7 +507,7 @@
             paymentAmount = '0';
             pinCode = '';
             document.getElementById('pay-note').value = '';
-            showScreen('screen-home');
+            showScreen('screen-home', true);
         }
 
         // --- CAMERA SCANNER LOGIC ---
@@ -488,97 +516,57 @@
             showScreen('screen-scanner');
             document.getElementById('scanner-status').innerText = 'Starting camera...';
             
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("qr-reader");
-            }
+            if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
 
             const config = { fps: 10, qrbox: { width: 250, height: 250 } };
             
-            // Start video stream
             html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-                .then(() => {
-                    document.getElementById('scanner-status').innerText = 'Point at a QR code to scan';
-                })
+                .then(() => document.getElementById('scanner-status').innerText = 'Point at a QR code to scan')
                 .catch((err) => {
-                    console.error("Camera Error:", err);
-                    document.getElementById('scanner-status').innerText = 'Camera access denied or unavailable.';
+                    console.error(err);
+                    document.getElementById('scanner-status').innerText = 'Camera access denied.';
                 });
         }
 
         function stopScannerAndGoHome() {
             if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    html5QrCode.clear();
-                    goHome();
-                }).catch(err => {
-                    console.error("Failed to stop scanner.", err);
-                    goHome();
-                });
+                html5QrCode.stop().then(() => { html5QrCode.clear(); goHome(); }).catch(() => goHome());
             } else {
                 goHome();
             }
         }
 
-        function onScanSuccess(decodedText, decodedResult) {
-            // Stop scanning once we hit a result
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(e => console.error(e));
-            }
+        function onScanSuccess(decodedText) {
+            if (html5QrCode && html5QrCode.isScanning) html5QrCode.stop().catch(e => console.error(e));
 
-            // Parse the UPI Intent URL (e.g., upi://pay?pa=merchant@upi&pn=Merchant%20Name)
             let merchantName = "Verified Vendor";
-            let upiId = decodedText.substring(0, 20) + "..."; // Fallback display
+            let upiId = decodedText.substring(0, 20) + "..."; 
 
             try {
                 if (decodedText.toLowerCase().startsWith('upi://')) {
-                    // Create a URL object to parse parameters easily
-                    const url = new URL(decodedText.replace('upi://', 'http://')); // Hack to use JS URL parser
-                    if (url.searchParams.get('pn')) {
-                        merchantName = decodeURIComponent(url.searchParams.get('pn').replace(/\+/g, ' '));
-                    }
-                    if (url.searchParams.get('pa')) {
-                        upiId = url.searchParams.get('pa');
-                    }
+                    const url = new URL(decodedText.replace('upi://', 'http://')); 
+                    if (url.searchParams.get('pn')) merchantName = decodeURIComponent(url.searchParams.get('pn').replace(/\+/g, ' '));
+                    if (url.searchParams.get('pa')) upiId = url.searchParams.get('pa');
                 } else {
-                    // If it's just raw text, use it as the name
                     merchantName = decodedText.split(' ')[0] + " Vendor";
                 }
-            } catch (e) {
-                console.error("Parsing error:", e);
-            }
+            } catch (e) { console.error(e); }
 
-            // Generate initials
             const words = merchantName.split(' ');
             const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : merchantName[0].toUpperCase();
 
-            // Build a dynamic contact
-            activeContact = {
-                id: 'scanned_' + Date.now(),
-                name: merchantName,
-                initials: initials,
-                color: 'bg-indigo-600',
-                phone: upiId
-            };
-
+            activeContact = { id: 'scanned_' + Date.now(), name: merchantName, initials: initials, color: 'bg-indigo-600', phone: upiId };
             goPayment();
         }
 
         function simulateScan() {
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(e => console.error(e));
-            }
-            // Pick a random contact to act as the scanned QR payee
-            const randomContact = MOCK_CONTACTS[Math.floor(Math.random() * MOCK_CONTACTS.length)];
-            activeContact = randomContact;
+            if (html5QrCode && html5QrCode.isScanning) html5QrCode.stop().catch(e => console.error(e));
+            activeContact = MOCK_CONTACTS[Math.floor(Math.random() * MOCK_CONTACTS.length)];
             goPayment();
         }
 
-        // --- END CAMERA LOGIC ---
-
         function goChat(contactId) {
             activeContact = MOCK_CONTACTS.find(c => c.id === contactId);
-            
-            // Populate Chat Header
             const avatar = document.getElementById('chat-avatar');
             avatar.className = `w-10 h-10 rounded-full flex items-center justify-center text-white font-medium text-sm shadow-sm shrink-0 ${activeContact.color}`;
             avatar.innerText = activeContact.initials;
@@ -592,8 +580,6 @@
         function goPayment() {
             paymentAmount = '0';
             updateAmountDisplay();
-            
-            // Populate Payment Header
             const avatar = document.getElementById('pay-avatar');
             avatar.className = `w-16 h-16 rounded-full flex items-center justify-center text-white font-medium text-2xl shadow-sm shrink-0 ${activeContact.color}`;
             avatar.innerText = activeContact.initials;
@@ -607,41 +593,32 @@
             if (paymentAmount === '0' || paymentAmount === '0.') return;
             pinCode = '';
             renderPinDots();
-
             document.getElementById('pin-to').innerText = `To: ${activeContact.name}`;
             document.getElementById('pin-amount').innerText = `Sending ₹${paymentAmount}`;
-            
             showScreen('screen-pin');
         }
 
         // RENDER FUNCTIONS
         function renderHomeData() {
-            // People
-            const peopleContainer = document.getElementById('people-list');
-            peopleContainer.innerHTML = MOCK_CONTACTS.map(c => `
+            document.getElementById('people-list').innerHTML = MOCK_CONTACTS.map(c => `
                 <div class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform" onclick="goChat('${c.id}')">
                     <div class="w-14 h-14 ${c.color} rounded-full flex items-center justify-center text-white font-medium text-lg shadow-sm shrink-0">${c.initials}</div>
                     <span class="text-xs text-gray-700 font-medium truncate w-16 text-center">${c.name.split(' ')[0]}</span>
                 </div>
             `).join('');
 
-            // Businesses
-            const bizContainer = document.getElementById('businesses-list');
-            bizContainer.innerHTML = MOCK_BUSINESSES.map(b => `
+            document.getElementById('businesses-list').innerHTML = MOCK_BUSINESSES.map(b => `
                 <div class="flex flex-col items-center gap-2 cursor-pointer">
-                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center ${b.color}">
-                        <i data-lucide="${b.icon}"></i>
-                    </div>
+                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center ${b.color}"><i data-lucide="${b.icon}"></i></div>
                     <span class="text-xs text-gray-700 font-medium text-center w-16 leading-tight">${b.name}</span>
                 </div>
             `).join('');
 
-            // History
-            const historyContainer = document.getElementById('history-list');
-            historyContainer.innerHTML = MOCK_HISTORY.map((txn, idx) => {
-                const contact = MOCK_CONTACTS.find(c => c.id === txn.contactId) || { initials: 'U', color: 'bg-gray-400', name: 'Unknown' };
+            // Uses dynamic history
+            document.getElementById('history-list').innerHTML = currentHistory.map((txn, idx) => {
+                const contact = MOCK_CONTACTS.find(c => c.id === txn.contactId) || { initials: txn.name.charAt(0).toUpperCase(), color: 'bg-indigo-600', name: txn.name };
                 const isSent = txn.type === 'sent';
-                const border = idx !== MOCK_HISTORY.length - 1 ? 'border-b border-gray-50' : '';
+                const border = idx !== currentHistory.length - 1 ? 'border-b border-gray-50' : '';
                 
                 return `
                     <div class="flex items-center justify-between p-3 ${border}">
@@ -661,84 +638,54 @@
                     </div>
                 `;
             }).join('');
+            lucide.createIcons();
         }
 
         function renderChatHistory() {
-            const container = document.getElementById('chat-history');
             const msgsHTML = MOCK_CHAT_HISTORY.map(item => {
                 if (item.type === 'message_received') {
-                    return `
-                        <div class="flex flex-col items-start max-w-[80%]">
-                            <div class="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm text-sm">
-                                ${item.text}
-                            </div>
-                            <span class="text-[10px] text-gray-400 mt-1 ml-1">${item.date}</span>
-                        </div>
-                    `;
+                    return `<div class="flex flex-col items-start max-w-[80%]"><div class="bg-white border border-gray-200 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm text-sm">${item.text}</div><span class="text-[10px] text-gray-400 mt-1 ml-1">${item.date}</span></div>`;
                 }
                 const isSent = item.type === 'payment_sent';
-                const icon = isSent ? 'arrow-up-right' : 'arrow-down-left';
                 const iconBg = isSent ? 'bg-[#1A73E8] text-white' : 'bg-green-100 text-green-600';
                 const bubbleStyle = isSent ? 'bg-blue-50 border border-blue-100 rounded-tr-sm' : 'bg-white border border-gray-200 rounded-tl-sm';
-                const align = isSent ? 'items-end' : 'items-start';
-
+                
                 return `
-                    <div class="flex flex-col ${align}">
+                    <div class="flex flex-col ${isSent ? 'items-end' : 'items-start'}">
                         <div class="p-4 rounded-3xl w-64 shadow-sm ${bubbleStyle}">
                             <div class="flex justify-between items-start mb-2">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center ${iconBg}">
-                                    <i data-lucide="${icon}" class="w-4 h-4"></i>
-                                </div>
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center ${iconBg}"><i data-lucide="${isSent ? 'arrow-up-right' : 'arrow-down-left'}" class="w-4 h-4"></i></div>
                                 <span class="text-xl font-semibold text-gray-800">₹${item.amount}</span>
                             </div>
                             <p class="text-sm text-gray-600 mb-2">${item.note}</p>
                             <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-200/60">
                                 <span class="text-xs font-medium text-gray-500">${isSent ? 'You paid' : 'Paid you'}</span>
-                                <div class="flex items-center gap-1 text-[#1A73E8]">
-                                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
-                                    <span class="text-xs font-medium">Success</span>
-                                </div>
+                                <div class="flex items-center gap-1 text-[#1A73E8]"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span class="text-xs font-medium">Success</span></div>
                             </div>
                         </div>
                         <span class="text-[10px] text-gray-400 mt-1 mx-1">${item.date}</span>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
-            
-            // Keep the 'joined' banner
-            container.innerHTML = `
-                <div class="text-center">
-                    <span class="text-xs bg-gray-200 text-gray-600 px-3 py-1 rounded-full font-medium">Joined GPay in 2024</span>
-                </div>
-                ${msgsHTML}
-            `;
+            document.getElementById('chat-history').innerHTML = `<div class="text-center"><span class="text-xs bg-gray-200 text-gray-600 px-3 py-1 rounded-full font-medium">Joined GPay in 2024</span></div>${msgsHTML}`;
         }
 
         function renderNumpads() {
             const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'];
             const pinKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0'];
 
-            // Payment Pad
             document.getElementById('pay-numpad').innerHTML = keys.map(k => `
                 <button onclick="handlePayKey('${k}')" class="py-4 text-2xl font-medium text-gray-800 active:bg-gray-200 rounded-2xl transition-colors">${k}</button>
-            `).join('') + `
-                <button onclick="handlePayKey('back')" class="py-4 flex items-center justify-center text-gray-800 active:bg-gray-200 rounded-2xl transition-colors">
-                    <i data-lucide="delete"></i>
-                </button>
-            `;
+            `).join('') + `<button onclick="handlePayKey('back')" class="py-4 flex items-center justify-center text-gray-800 active:bg-gray-200 rounded-2xl transition-colors"><i data-lucide="delete"></i></button>`;
 
-            // PIN Pad
             document.getElementById('pin-numpad').innerHTML = pinKeys.map(k => `
                 <button onclick="${k ? `handlePinKey('${k}')` : ''}" class="py-3 text-2xl font-medium text-gray-800 active:bg-gray-100 rounded-full transition-colors ${!k ? 'invisible' : ''}">${k}</button>
-            `).join('') + `
-                <button onclick="handlePinKey('back')" class="py-3 flex items-center justify-center text-gray-800 active:bg-gray-100 rounded-full transition-colors">
-                    <i data-lucide="delete"></i>
-                </button>
-            `;
+            `).join('') + `<button onclick="handlePinKey('back')" class="py-3 flex items-center justify-center text-gray-800 active:bg-gray-100 rounded-full transition-colors"><i data-lucide="delete"></i></button>`;
         }
 
         // LOGIC HANDLERS
         function handlePayKey(val) {
+            if (navigator.vibrate) navigator.vibrate(20); // Haptic feedback
+            
             if (val === 'back') {
                 paymentAmount = paymentAmount.length > 1 ? paymentAmount.slice(0, -1) : '0';
             } else if (val === '.') {
@@ -754,7 +701,6 @@
             const display = document.getElementById('pay-amount-display');
             const btn = document.getElementById('pay-btn');
             const btnAmount = document.getElementById('pay-btn-amount');
-            
             display.innerText = paymentAmount;
             
             if (paymentAmount !== '0' && paymentAmount !== '0.') {
@@ -771,18 +717,16 @@
         }
 
         function handlePinKey(val) {
+            if (navigator.vibrate) navigator.vibrate(30); // Haptic feedback
+            
             if (val === 'back') {
                 pinCode = pinCode.slice(0, -1);
             } else {
-                if (pinCode.length < 4) {
-                    pinCode += val;
-                }
+                if (pinCode.length < 4) pinCode += val;
             }
             renderPinDots();
 
-            if (pinCode.length === 4) {
-                setTimeout(processPayment, 300);
-            }
+            if (pinCode.length === 4) setTimeout(processPayment, 300);
         }
 
         function renderPinDots() {
@@ -793,19 +737,16 @@
 
         function processPayment() {
             showScreen('screen-processing');
-            
-            setTimeout(() => {
-                showSuccess();
-            }, 2500);
+            setTimeout(showSuccess, 2500);
         }
 
         function showSuccess() {
-            // Setup Basic Info
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Success Haptics
+
             document.getElementById('success-amount').innerText = `₹${paymentAmount}`;
             document.getElementById('success-to').innerText = `Paid to ${activeContact.name}`;
             document.getElementById('success-phone').innerText = activeContact.phone || "UPI User";
             
-            // Note Display
             const note = document.getElementById('pay-note').value;
             const noteContainer = document.getElementById('success-note-container');
             if (note) {
@@ -815,32 +756,36 @@
                 noteContainer.classList.add('hidden');
             }
 
-            // Generate Realistic UTR (12 digits, often starts with year/day indicators, e.g., 4...)
             const fakeUTR = '4' + Math.floor(10000000000 + Math.random() * 90000000000);
             document.getElementById('success-utr').innerText = fakeUTR;
 
-            // Generate Current Date/Time in GPay format (e.g., 8 Jun 2026, 3:16 PM)
             const now = new Date();
             const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
             const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
             const dateString = `${now.toLocaleDateString('en-IN', dateOptions)}, ${now.toLocaleTimeString('en-IN', timeOptions).toUpperCase()}`;
             document.getElementById('success-date').innerText = dateString;
 
-            // Remove and re-add animation classes to re-trigger them
-            const animatedElems = document.querySelectorAll('#screen-success .animate-fade-in');
-            animatedElems.forEach(el => {
-                el.style.animation = 'none';
-                el.offsetHeight; // trigger reflow
-                el.style.animation = null; 
+            // SAVE TO LOCAL STORAGE
+            const newTxn = {
+                id: 't' + Date.now(),
+                contactId: activeContact.id,
+                name: activeContact.name,
+                type: 'sent',
+                amount: paymentAmount,
+                date: 'Just now',
+                status: 'Success'
+            };
+            currentHistory.unshift(newTxn);
+            localStorage.setItem('gpay_history', JSON.stringify(currentHistory));
+            renderHomeData(); // Update Home screen in background
+
+            // Reset animations
+            document.querySelectorAll('#screen-success .animate-fade-in').forEach(el => {
+                el.style.animation = 'none'; el.offsetHeight; el.style.animation = null; 
             });
 
-            // Play the Sound and Show the Screen
             showScreen('screen-success');
-            
-            // Slight delay before sound so it matches the visual tick landing
-            setTimeout(() => {
-                playSuccessSound();
-            }, 100); 
+            setTimeout(playSuccessSound, 100); 
         }
 
     </script>
